@@ -5,22 +5,67 @@ from nireports.assembler.report import Report
 import numpy as np
 import nibabel as nib
 from nilearn import plotting
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+import os
+from freesurfer_report import generate_report_with_plots
 
-def gen_subj_fs_report(fs_dir, subj, outdir):
-    subj_fs_dir = Path(fs_dir) / subj
-    hemis = ["lh", "rh"]
-    stypes = ["inflated", "pial", "white", "midthickness"]
-    surfs = {f"{hemi}_{stype}": subj_fs_dir / "surf" / f"{hemi}.{stype}" for hemi in hemis for stype in stypes}
-    print(surfs)
+# def gen_subj_fs_report(fs_dir, subj, outdir):
+#     subj_fs_dir = Path(fs_dir) / subj
+#     hemis = ["lh", "rh"]
+#     stypes = ["inflated", "pial", "white", "midthickness"]
+#     surfs = {f"{hemi}_{stype}": subj_fs_dir / "surf" / f"{hemi}.{stype}" for hemi in hemis for stype in stypes}
+#     print(surfs)
+
+
+
+layout = BIDSLayout("bids_testset")
+subjects = layout.get(return_type='filename', target='subject', suffix='T1w', extension='nii.gz')
+
+if subjects:
+    in_file = layout.get_file(subjects[0])
+    
+    entities = in_file.get_entities()
+    entities.pop("extension", None)
+
+
+def generate_paths(folder_path):
+    """Generate a list of file paths for files named "aseg.stats" within a given folder.
+
+        Parameters
+        ----------
+        folder_path : str
+            The path to the folder to search for files.
+
+        Returns
+        -------
+        list
+            A list of file paths for files named "aseg.stats" within the specified folder.
+        """
+
+    file_paths = []
+
+    for dirpath, dirnames, filenames in os.walk(folder_path):
+        for file_name in filenames:
+            if file_name == "aseg.stats":
+                file_path = os.path.join(dirpath, file_name)
+                file_paths.append(file_path)
+
+    return file_paths
+
+report_type = entities.pop("datatype", None)
+report_type = "fs"
+bootstrap_file=f"bootstrap_data/bootstrap-{report_type}.yml"
 
 # fs_dir = "/mnt/projects/nireports/nireports_freesurfer/bids_testset/derivatives/freesurfer"
 # subj = "sub-pp001"
 # outdir = "/mnt/projects/nireports/nireports_freesurfer/reportlets"
 # gen_subj_fs_report(fs_dir, subj, outdir)
 
-entities = {'session': '01', 'subject': 'pp001', 'suffix': 'T1w'}
+generate_paths("bids_testset")
 
-bootstrap_file=f"/mnt/projects/nireports/nireports_freesurfer/bootstrap_data/bootstrap-fs.yml"
+
+bootstrap_file="bootstrap_data/bootstrap-fs.yml"
 prov = {}
 
 prov["Freesurfer build stamp"] = f"freesurfer-linux-ubuntu22_x86_64-7.3.2-20220804-6354275"
@@ -38,10 +83,35 @@ metadata={
 
 output_dir = "fs_report"
 uuid = "random_uuid"
-reportlets_dir = "reportlets/sub-pp001/ses-01/figures"
+reportlets_dir = "reportlets/sub-s05/ses-01/figures"
 
-robj = Report(output_dir, uuid, reportlets_dir=reportlets_dir,
-              bootstrap_file=bootstrap_file, metadata=metadata,
-              plugin_meta={}, **entities)
+# robj = Report(output_dir, uuid, reportlets_dir=reportlets_dir,
+#               bootstrap_file=bootstrap_file, metadata=metadata,
+#               plugin_meta={}, **entities)
 
-robj.generate_report()
+# robj.generate_report()
+
+
+
+test_meta = {}
+
+metadata={
+    "dataset": "test name",
+    "about-metadata": {
+        "Provenance Information": prov,
+        "Dataset Information": test_meta,
+    }
+}
+output_dir = "bids_testset/derivatives/testreport"
+reportlets_dir = "bids_testset/derivatives/fmriprep/sub-s05/figures/"
+
+report_filename = generate_report_with_plots(
+    output_dir=output_dir, 
+    run_uuid=uuid.uuid4(), 
+    reportlets_dir=reportlets_dir,
+    bootstrap_file=bootstrap_file,
+    metadata=metadata,
+    plugin_meta={}
+)
+
+dir_FS ="bids_testset/derivatives/fmriprep/sourcedata/freesurfer/sub-s05"
